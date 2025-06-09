@@ -31,11 +31,15 @@ A Discord bot for raspberry pi, line sensor, and cat treadmill (or other turning
 
 ## Notes
 This configuration uses polling, not interrupt. Polling occurs every .0025s with a minimum of .0015s available. Interrupt might be better, but this is more precision than I need.
-The inner dimension of the One Fast Cat wheel track is C=336cm D=107cm, the outer track dimension is about C=355cm D=113cm, and the stock support wheels are D=88mm; mine are 110mm
+
+The inner dimension of the One Fast Cat wheel track is C=336cm D=107cm, the outer track dimension is about C=355cm D=113cm, and the stock support wheels are D=88mm; mine are 110mm. 
+
 Number of tape stripes applied to support wheel: stripes
 
 distance = track-inner-d / track-outer-d * ( (support-wheel-d * pi ) / stripes ) 
 
 distance ratio = track-inner-d / track-outer-d
+
 distance ratio = 107cm / 113cm
+
 distance ratio = 0.947
