@@ -23,6 +23,7 @@ A Discord bot for raspberry pi, line sensor, and cat treadmill (or other turning
 # Software configuration
  - Configure and connect TTY: https://www.raspberrypi.com/documentation/computers/remote-access.html
  - Set up a Discord "app" bot: https://discord.com/developers/docs/quick-start/getting-started
+ - put the .env file in with the .py file
  - Download code to your Pi
  - Add python to rc.1 for autostart
  - Add your Bot, Channel, and wheel info to the python files. Also adjust the GPIO pin if you used a different one than indicated above, run "pinout" in terminal to see the correlations
@@ -30,11 +31,11 @@ A Discord bot for raspberry pi, line sensor, and cat treadmill (or other turning
  - send "!start_wheel" in your channel and expect a response from your bot/app
 
 ## Notes
-This configuration uses polling, not interrupt. Polling occurs every .0025s with a minimum of .0015s available. Interrupt might be better, but this is more precision than I need.
+This configuration uses polling, not interrupt. Polling occurs every .00025s with a minimum of .00015s available. Interrupt might be better, but this is more precision than I need.
 
-The inner dimension of the One Fast Cat wheel track is C=336cm D=107cm, the outer track dimension is about C=355cm D=113cm, and the stock support wheels are D=88mm; mine are 110mm. 
+The inner dimension of the One Fast Cat wheel track is C=336cm D=1070mm, the outer track dimension is about C= D=1149.35 mm, and the stock support wheels are D=88mm; mine are 110mm. 
 
-Number of tape stripes applied to support wheel: stripes
+stripes = Number of tape strips applied to support wheel, times two
 
 distance = track-inner-d / track-outer-d * ( (support-wheel-d * pi ) / stripes ) 
 
@@ -43,3 +44,4 @@ distance ratio = track-inner-d / track-outer-d
 distance ratio = 107cm / 113cm
 
 distance ratio = 0.947
+
