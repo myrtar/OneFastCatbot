@@ -23,11 +23,11 @@ A Discord bot for raspberry pi, line sensor, and cat treadmill (or other turning
 # Software configuration
  - Configure and connect TTY: https://www.raspberrypi.com/documentation/computers/remote-access.html
  - Set up a Discord "app" bot: https://discord.com/developers/docs/quick-start/getting-started
- - put the .env file in with the .py file
- - Download code to your Pi
- - Add python to rc.1 for autostart
+ - put the resulting .env file somewhere handy
+ - Download wheelbot.py to your Pi, same place as the .env file
  - Add your Bot, Channel, and wheel info to the python files. Also adjust the GPIO pin if you used a different one than indicated above, run "pinout" in terminal to see the correlations
- - Reboot the Pi
+ - Add wheelbot.py as a service: https://tecadmin.net/setup-autorun-python-script-using-systemd/
+ - Reboot your Pi to make sure it all comes online automatically
  - send "!start_wheel" in your channel and expect a response from your bot/app
 
 ## Notes
