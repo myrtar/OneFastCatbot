@@ -30,6 +30,7 @@ timestamp_list = []
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
+    await ctx.send('Wheel monitor connected but paused, use !start_wheel to begin.') # to begin discord activity
 
 @tasks.loop(seconds=0.00025)  # Adjust delay as needed for sensor resolution, minimum delay is .00015 seconds (150us).
 async def monitor_gpio():
