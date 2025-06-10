@@ -7,12 +7,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-Channel_ID = ################### # your channel ID 
+Channel_ID = os.getenv('CHANNEL_ID')
 intents = discord.Intents.all()
-GPIO_PIN = 17 # this is pin 11 on a pi
+GPIO_PIN = 17
 monitoring = False
-# these are onefastcat defaults, change if needed
-distance_per_flip = 1070 / 1149 * ( ( 88 * pi ) / 2 ) # track-inner-d / track-outer-d * ( (support-wheel-d-in-mm * pi ) / stripes ) 
+distance_per_flip = 1070 / 1149 * ( ( 110 * 3.14 ) / 2 ) # in mm: track-inner-d / track-outer-d * ( (support-wheel-d * pi ) / stripes ) 
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
@@ -30,14 +29,14 @@ timestamp_list = []
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
 
-@tasks.loop(seconds=0.00025)  # Adjust delay as needed for sensor resolution, minimum delay is .00015 seconds.
+@tasks.loop(seconds=0.00025)  # Adjust delay as needed for sensor resolution, minimum delay is .00015 seconds (150us).
 async def monitor_gpio():
     global distance, last_change_time, monitoring, last_state, start_time
-    if GPIO.input(GPIO_PIN) != last_state and monitoring: # is a run happening?
+    if GPIO.input(GPIO_PIN) != last_state and monitoring: # run happening?
         timestamp_list.append(time.time())
         last_state = GPIO.input(GPIO_PIN)
 
-    elif not timestamp_list: # no, run is not happening
+    elif not timestamp_list: # run not happening
         time.sleep(.2)
 
     elif monitoring and timestamp_list and (time.time() - timestamp_list[-1]) > session_end_wait_time: # after running ends
@@ -54,7 +53,7 @@ async def monitor_gpio():
             pace_mi = 60 / mph # minutes per mile
             pace_km = pace_mi * 0.621371
 #            pace_nm = pace_mi / 0.86897
-#            furlong = distance / 201.168 # why, steeb?
+#            furlong = distance / 201.168 # why steeb?
 
             for i in range(1, (len(timestamp_list)-calc_span)): 
                 time_diff = timestamp_list[i + calc_span] - timestamp_list[i]
@@ -64,7 +63,7 @@ async def monitor_gpio():
 
             print(f'{distance:.1f}m | {elapsed_time:.1f}s | avg {avg_speed:.2f}m/s | top {top_speed:.2f}m/s')
                         # wheel movement result output
-            await bot.get_channel(Channel_ID).send(f'Meowrie Curie ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).') 
+            await bot.get_channel(Channel_ID).send(f'Cat ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).') 
         timestamp_list.clear()
         print("Elif done, zeroed out")
 
@@ -74,7 +73,7 @@ async def start_wheel(ctx):
     monitoring = True
     monitor_gpio.start()
     print(f'Monitoring wheel for channel {Channel_ID}')
-    await ctx.send('Monitoring cat wheel. Use !stop_wheel to halt. Complain to @myrt') # startup discord response
+    await ctx.send('Monitoring cat wheel. Use !stop_wheel to halt.') # startup discord response
 
 @bot.command()
 async def stop_wheel(ctx):
