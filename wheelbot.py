@@ -11,7 +11,9 @@ Channel_ID = os.getenv('CHANNEL_ID')
 intents = discord.Intents.all()
 GPIO_PIN = 17
 monitoring = False
-distance_per_flip = 1070 / 1149 * ( ( 110 * 3.14 ) / 2 ) # in mm: track-inner-d / track-outer-d * ( (support-wheel-d * pi ) / stripes ) 
+support_wheel = 110 # wheel diameter in millimeters, stock wheel is 88
+stripes = 2
+distance_per_flip = 1070 / 1149 * ( ( support_wheel * 3.14 ) / stripes ) # in mm: track-inner-d / track-outer-d * ( (support-wheel * pi ) / stripes ) 
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
@@ -21,7 +23,7 @@ GPIO.setup(GPIO_PIN, GPIO.IN)
 bot = commands.Bot(command_prefix='!', intents = intents)
 
 session_end_wait_time = 5 # seconds to wait stationary before considering the run session "over"
-session_end_min_dist = 0.5 # how far does the run need to be to publish/record it?
+session_end_min_dist = 0.5 # meters: how far does the run need to be to publish/record it?
 last_state = GPIO.input(GPIO_PIN)
 timestamp_list = []
 
@@ -60,9 +62,9 @@ async def monitor_gpio():
                 speed = (calc_span*distance_per_flip)/time_diff
                 if speed > top_speed and speed < (avg_speed * 5):
                    top_speed = speed
-
+            #print to console:
             print(f'{distance:.1f}m | {elapsed_time:.1f}s | avg {avg_speed:.2f}m/s | top {top_speed:.2f}m/s')
-                        # wheel movement result output
+                        # wheel movement result output to discord:
             await bot.get_channel(Channel_ID).send(f'Cat ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).') 
         timestamp_list.clear()
         print("Elif done, zeroed out")
