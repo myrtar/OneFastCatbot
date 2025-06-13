@@ -7,12 +7,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-Channel_ID = 
 intents = discord.Intents.all()
 GPIO_PIN = 17
 monitoring = True
-support_wheel = 110 # wheel diameter in millimeters, stock wheel is 88
-stripes = 2
+Channel_ID = #must be defined for your own channel
+runner_name = 'Meowrie Curie'
+support_wheel = 88 # wheel diameter in millimeters, stock wheel is 88
+stripes = 2 #number of color changes (or, number of tape pieces times two)
+
 distance_per_flip = 1070 / 1149 * ( ( support_wheel * 3.14 ) / stripes ) / 1000 # in m: track-inner-d / track-outer-d * ( (support-wheel * pi ) / stripes ) 
 
 # Initialize GPIO
@@ -38,7 +40,7 @@ async def monitor_gpio():
         timestamp_list.append(time.time())
         last_state = GPIO.input(GPIO_PIN)
         print(f'Go time!')
-    elif not timestamp_list: # run not happening
+    elif not timestamp_list: # run is not happening
         time.sleep(.2)
 
     elif monitoring and timestamp_list and (time.time() - timestamp_list[-1]) > session_end_wait_time: # after running ends
@@ -64,7 +66,7 @@ async def monitor_gpio():
                     top_speed = speed
 
             print(f'{distance:.1f}m | {elapsed_time:.1f}s | {speed:.2f}m/s')
-            await bot.get_channel(Channel_ID).send(f'Cat(s) ran {distance:.1f}m ({dist_ft:.1f}\' in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
+            await bot.get_channel(Channel_ID).send(f'{runner_name} ran {distance:.1f}m ({dist_ft:.1f}\' in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
         timestamp_list.clear()
         print("Elif done, zeroed out")
 
