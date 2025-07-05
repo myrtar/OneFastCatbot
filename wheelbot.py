@@ -66,7 +66,7 @@ async def monitor_gpio():
                     top_speed = speed
 
             print(f'{distance:.1f}m | {elapsed_time:.1f}s | {speed:.2f}m/s')
-            await bot.get_channel(Channel_ID).send(f'{runner_name} ran {distance:.1f}m ({dist_ft:.1f}\' in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
+            await bot.get_channel(Channel_ID).send(f'{runner_name} ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
         timestamp_list.clear()
         print("Elif done, zeroed out")
 
