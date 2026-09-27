@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 # Put your channel ID in .env as CHANNEL_ID=1234567890, or replace the
-# fallback 0 below with it directly like the original script did.
+# fallback 0 below with it directly.
 CHANNEL_ID = int(os.getenv('CHANNEL_ID') or 0)
 if not TOKEN or not CHANNEL_ID:
     raise SystemExit('DISCORD_TOKEN and CHANNEL_ID must be set (check the .env file)')
@@ -18,8 +18,8 @@ if not TOKEN or not CHANNEL_ID:
 GPIO_PIN = 17
 runner_name = 'Meowrie Curie'
 
-support_wheel = 110      # support wheel diameter in mm (stock is 88)
-tape_strips = 1         # pieces of tape on the support wheel (NOT times two anymore)
+support_wheel = 88      # support wheel diameter in mm (stock is 88)
+tape_strips = 1         # pieces of tape on the support wheel
 track_ratio = 1070 / 1149   # track inner-d / outer-d
 
 # We count ONE edge per tape strip (rising only), so each count is exactly
