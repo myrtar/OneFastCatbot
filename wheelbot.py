@@ -1,95 +1,141 @@
-import discord
 import os
-from discord.ext import tasks, commands
-import RPi.GPIO as GPIO
 import time
+import threading
+
+import discord
+from discord.ext import tasks, commands
+from gpiozero import DigitalInputDevice
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-intents = discord.Intents.all()
+# Put your channel ID in .env as CHANNEL_ID=1234567890, or replace the
+# fallback 0 below with it directly like the original script did.
+CHANNEL_ID = int(os.getenv('CHANNEL_ID') or 0)
+if not TOKEN or not CHANNEL_ID:
+    raise SystemExit('DISCORD_TOKEN and CHANNEL_ID must be set (check the .env file)')
+
 GPIO_PIN = 17
-monitoring = True
-Channel_ID = #must be defined for your own channel
 runner_name = 'Meowrie Curie'
-support_wheel = 88 # wheel diameter in millimeters, stock wheel is 88
-stripes = 2 #number of color changes (or, number of tape pieces times two)
 
-distance_per_flip = 1070 / 1149 * ( ( support_wheel * 3.14 ) / stripes ) / 1000 # in m: track-inner-d / track-outer-d * ( (support-wheel * pi ) / stripes ) 
+support_wheel = 110      # support wheel diameter in mm (stock is 88)
+tape_strips = 1         # pieces of tape on the support wheel (NOT times two anymore)
+track_ratio = 1070 / 1149   # track inner-d / outer-d
 
-# Initialize GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(GPIO_PIN, GPIO.IN)
+# We count ONE edge per tape strip (rising only), so each count is exactly
+# 1/tape_strips of a revolution, regardless of stripe width or sensor polarity.
+distance_per_count = track_ratio * (support_wheel * 3.14159265 / tape_strips) / 1000  # m
 
-# Initialize Discord bot
-bot = commands.Bot(command_prefix='!', intents = intents)
+# Anything faster than this is physically impossible for a cat, so two edges
+# closer together than the resulting interval are sensor chatter, not tape.
+max_plausible_speed = 15.0  # m/s
+min_count_interval = distance_per_count / max_plausible_speed  # s
 
-session_end_wait_time = 5 # seconds to wait stationary before considering the run session "over"
-session_end_min_dist = 0.5 # how far does the run need to be to publish/record it?
-last_state = GPIO.input(GPIO_PIN)
-timestamp_list = []
+top_speed_revs = 2          # top speed is measured over this many whole revolutions
+session_end_wait_time = 5   # s of no movement before a run is considered over
+session_end_min_dist = 0.5  # m; shorter runs are not reported
+
+monitoring = True
+_lock = threading.Lock()
+timestamps = []
+_last_count_time = 0.0
+
+
+def on_edge():
+    """Runs in gpiozero's edge-event thread, independent of the Discord event loop."""
+    global _last_count_time
+    if not monitoring:
+        return
+    now = time.monotonic()  # immune to NTP clock steps, unlike time.time()
+    if now - _last_count_time < min_count_interval:
+        return  # debounce
+    _last_count_time = now
+    with _lock:
+        timestamps.append(now)
+
+
+def summarize(ts):
+    intervals = len(ts) - 1  # N edges bound N-1 measured intervals
+    if intervals < 1:
+        return None
+    distance = intervals * distance_per_count
+    if distance < session_end_min_dist:
+        return None
+    elapsed = ts[-1] - ts[0]
+    speed = distance / elapsed  # m/s
+
+    span = top_speed_revs * tape_strips  # always a whole number of revolutions
+    top_speed = speed
+    for i in range(len(ts) - span):
+        window_speed = span * distance_per_count / (ts[i + span] - ts[i])
+        top_speed = max(top_speed, window_speed)
+
+    dist_ft = distance * 3.28084
+    kph = speed * 3.6
+    mph = kph / 1.60934
+    pace_mi = 60 / mph
+    pace_km = 60 / kph
+
+    print(f'{distance:.1f}m | {elapsed:.1f}s | avg {speed:.2f}m/s | top {top_speed:.2f}m/s')
+    return (f'{runner_name} ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed:.1f}s '
+            f'at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed * 3.6:.2f}kph, '
+            f'avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
+
+
+# The sensor module drives its OUT pin itself, so no internal pull resistor.
+# gpiozero ships with Raspberry Pi OS and uses kernel edge events (lgpio),
+# which work on Bookworm, unlike RPi.GPIO's add_event_detect.
+sensor = DigitalInputDevice(GPIO_PIN, pull_up=None, active_state=True)
+sensor.when_activated = on_edge  # one count per rising edge
+
+bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
+
+
+@tasks.loop(seconds=0.5)
+async def check_session():
+    with _lock:
+        if not timestamps or time.monotonic() - timestamps[-1] < session_end_wait_time:
+            return
+        ts = timestamps.copy()
+        timestamps.clear()
+    message = summarize(ts)
+    if message:
+        await bot.get_channel(CHANNEL_ID).send(message)
+    else:
+        print('Run too short, discarded')
+
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id}) and monitoring = {monitoring}')
 
-@tasks.loop(seconds=0.00050)  # Adjust delay as needed for sensor resolution, floor is .00015
-async def monitor_gpio():
-    global distance, last_change_time, monitoring, last_state, start_time
-    if GPIO.input(GPIO_PIN) != last_state and monitoring: # run happening?
-        timestamp_list.append(time.time())
-        last_state = GPIO.input(GPIO_PIN)
-        print(f'Go time!')
-    elif not timestamp_list: # run is not happening
-        time.sleep(.2)
-
-    elif monitoring and timestamp_list and (time.time() - timestamp_list[-1]) > session_end_wait_time: # after running ends
-        distance = len(timestamp_list) * distance_per_flip
-        if distance > session_end_min_dist:
-            elapsed_time = timestamp_list[-1] - timestamp_list[0]
-            calc_span = 4
-            top_speed = 0
-            speed = (distance / elapsed_time)  # m/s
-            dist_ft = distance * 3.28084
-            kph = speed * 3.6 # kilometer per hour
-            mph = kph / 1.60934 # miles per hour
-            kts = speed * 1.943844
-            pace_mi = 60 / mph # minutes per mile
-            pace_km = pace_mi * 0.621371
-            pace_nm = pace_mi / 0.86897
-            furlong = distance / 201.168 # y tho
-
-            for i in range(1, (len(timestamp_list)-calc_span)):
-                time_diff = timestamp_list[i + calc_span] - timestamp_list[i]
-                speed = (calc_span*distance_per_flip)/time_diff
-                if speed > top_speed:
-                    top_speed = speed
-
-            print(f'{distance:.1f}m | {elapsed_time:.1f}s | {speed:.2f}m/s')
-            await bot.get_channel(Channel_ID).send(f'{runner_name} ran {distance:.1f}m ({dist_ft:.1f}\') in {elapsed_time:.1f}s at {kph:.2f}kph ({mph:.2f}MPH), top speed {top_speed*3.6:.2f}kph, avg pace: {pace_km:.0f}min/km ({pace_mi:.0f}min/SM).')
-        timestamp_list.clear()
-        print("Elif done, zeroed out")
 
 @bot.command()
 async def start_wheel(ctx):
     global monitoring
     monitoring = True
-    monitor_gpio.start()
-                               
+    if not check_session.is_running():
+        check_session.start()
     await ctx.send('Monitoring cat wheel. Use !stop_wheel to halt.')
+
 
 @bot.command()
 async def stop_wheel(ctx):
     global monitoring
     monitoring = False
-    monitor_gpio.stop()
+    check_session.stop()
+    with _lock:
+        timestamps.clear()
     await ctx.send('Wheel monitor halted, use !start_wheel to resume.')
+
 
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-#        await ctx.send("Invalid command")
-        print("Invalid command ignored in discord channel")
+        print('Invalid command ignored in discord channel')
 
-    current_state = GPIO.input(GPIO_PIN)
-bot.run(TOKEN)
+
+try:
+    bot.run(TOKEN)
+finally:
+    sensor.close()
